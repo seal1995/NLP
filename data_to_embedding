@@ -1,0 +1,31 @@
+from sentence_transformers import SentenceTransformer
+import pandas as pd
+from elasticsearch import Elasticsearch
+# 选择向量化的模型
+from xinference.client import Client
+client = Client("http://localhost:9997")
+model_uid = client.launch_model(model_name="bge-base-zh-v1.5", model_type="embedding")
+model = client.get_model(model_uid)
+# 连接ES服务器
+es = Elasticsearch("http://localhost:9200")
+# 读取本地数据
+df = pd.read_excel(r"C:\Users\Administrator\PycharmProjects\Pycharmuse\大模型\问答数据.xlsx",sheet_name='data',usecols=["question","answer"])
+# 利用循环将本地数据向量化后，将向量数据存入向量数据库
+for i in range(1142,len(df['question'])):
+    question = df['question'][i]
+    q_embedding = model.create_embedding(df['question'][i])['data'][0]['embedding']
+    answer = df['answer'][i]
+    a_embedding= model.create_embedding(df['answer'][i])['data'][0]['embedding']
+    q_len=len(question)
+    a_len=len(answer)
+    INDEX_NAME = "qa_data_1"
+    e1 = {
+        "question":question,
+        "q_embedding":q_embedding,
+        "q_len":q_len,
+        "answer":answer,
+        "a_embedding":a_embedding,
+        "a_len":a_len,}
+    res = es.index(index = INDEX_NAME, document = e1)
+    print(res)
+    print(i)
