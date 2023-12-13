@@ -1,9 +1,0 @@
-from elasticsearch import Elasticsearch
-es = Elasticsearch("http://localhost:9200")
-# 使用for循环进行批量删除文档中的数据
-INDEX_NAME = "qa_data_1"
-# size=1000，意味着每次只查询1000条数据，进行增删查改都是1000，数据更大建议使用翻页查询
-res = es.search(index = INDEX_NAME, query = {"match_all": {}},size=1000)
-for i in range(0,len(res['hits']['hits'])):
-    _id=res['hits']['hits'][i]['_id']
-    es.delete(index = INDEX_NAME, id = _id)
