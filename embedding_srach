@@ -1,0 +1,37 @@
+from sentence_transformers import SentenceTransformer, util
+import pandas as pd
+from elasticsearch import Elasticsearch
+
+# 确定进行向量化的模型
+# 用anaconda.prompt的base本地环境设置一个通道实例：xinference -p 9997
+# 部署模型
+from xinference.client import Client
+client = Client("http://localhost:9997")
+model_uid = client.launch_model(model_name="bge-base-zh-v1.5", model_type="embedding")
+model = client.get_model(model_uid)
+es = Elasticsearch("http://localhost:9200")
+
+# 提取本地数据
+df = pd.read_excel(r"C:\Users\Administrator\PycharmProjects\Pycharmuse\大模型\问答数据.xlsx",
+                   sheet_name='data',usecols=["question"])
+
+# 将输入的问题进行向量化
+# input_embedding = model.encode(df['question'][0])
+input_embedding = model.create_embedding("为什么我无法进入事务数字账户并且开票额度为0?")
+input_embedding = input_embedding['data'][0]['embedding']
+# 确定目标向量库
+INDEX_NAME = "qa_data_1"
+
+# 在目标向量库中进行余弦相似度计算
+# size=1000，意味着每次只查询1000条数据，进行增删查改都是1000，数据更大建议使用翻页查询
+res = es.search(index = INDEX_NAME, query = {"match_all": {}},size=1000)
+cos_sim_list=[]
+for i in range(0,len(res['hits']['hits'])):
+    q_embedding = res['hits']['hits'][i]["_source"]['q_embedding']
+    # 进行向量余弦相似度检测
+    cos_sim = util.cos_sim(input_embedding,q_embedding)
+    cos_sim_list.append(cos_sim[0][0].item())
+    a=cos_sim_list.index(max(cos_sim_list))
+print(res['hits']['hits'][a]["_source"]['question'])
+print(res['hits']['hits'][a]["_source"]['answer'])
+print(max(cos_sim_list))
